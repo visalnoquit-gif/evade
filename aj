@@ -1,65 +1,72 @@
-local p=game:GetService("Players").LocalPlayer
-local r=game:GetService("RunService")
-local t=game:GetService("TweenService")
-local g=Instance.new("ScreenGui",p:WaitForChild("PlayerGui"))
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
--- Frame
-local f=Instance.new("Frame",g)
-f.Size=UDim2.new(0,80,0,40)
-f.Position=UDim2.new(0.5,-40,0.5,-20)
-f.BackgroundColor3=Color3.fromRGB(50,50,50)
-f.BackgroundTransparency=0.7
-Instance.new("UICorner",f).CornerRadius=UDim.new(0,10)
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
--- Outline
-local o=Instance.new("UIStroke",f)
-o.Thickness=3
-o.Color=Color3.fromRGB(255,0,0)
+-- GUI setup
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 
--- Button
-local b=Instance.new("TextButton",f)
-b.Size=UDim2.new(1,0,1,0)
-b.Position=UDim2.new(0,0,0,0)
-b.BackgroundTransparency=1
-b.Text="Evade"
-b.TextColor3=Color3.fromRGB(30,30,30)
-b.TextScaled=true
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 60, 0, 30) -- small like your thumb
+frame.Position = UDim2.new(0.5, -30, 0.5, -15)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.BackgroundTransparency = 0.7
 
--- Toggle state
-local e=false
-local onTween=t:Create(o,TweenInfo.new(0.1),"Out",{Color=Color3.fromRGB(0,255,0)})
-local offTween=t:Create(o,TweenInfo.new(0.1),"Out",{Color=Color3.fromRGB(255,0,0)})
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 8)
 
-b.MouseButton1Click:Connect(function()
-    e=not e
-    if e then onTween:Play() else offTween:Play() end
-    b:TweenSize(UDim2.new(1,-4,1,-4),"Out","Quad",0.05,true)
-    wait(0.05)
-    b:TweenSize(UDim2.new(1,0,1,0),"Out","Quad",0.05,true)
-end)
+local outline = Instance.new("UIStroke", frame)
+outline.Thickness = 2
+outline.Color = Color3.fromRGB(255, 0, 0)
 
--- **Draggable mobile-friendly**
-local dragging=false
+local button = Instance.new("TextButton", frame)
+button.Size = UDim2.new(1, 0, 1, 0)
+button.BackgroundTransparency = 1
+button.Text = "Evade Off"
+button.TextColor3 = Color3.fromRGB(30, 30, 30)
+button.TextScaled = true
+
+-- State
+local isOn = false
+
+-- Toggle function
+local function toggleEvade()
+    isOn = not isOn
+    button.Text = isOn and "Evade On" or "Evade Off"
+    if isOn then
+        outline.Color = Color3.fromRGB(0, 255, 0)
+    else
+        outline.Color = Color3.fromRGB(255, 0, 0)
+    end
+end
+
+button.MouseButton1Click:Connect(toggleEvade)
+
+-- Draggable (mobile-friendly)
+local dragging = false
 local dragStart
 local startPos
 
-f.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.Touch then
-        dragging=true
-        dragStart=input.Position
-        startPos=f.Position
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
         input.Changed:Connect(function()
-            if input.UserInputState==Enum.UserInputState.End then
-                dragging=false
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
             end
         end)
     end
 end)
 
-f.InputChanged:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.Touch and dragging then
-        local delta=input.Position - dragStart
-        f.Position = UDim2.new(
+frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch and dragging then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(
             startPos.X.Scale,
             startPos.X.Offset + delta.X,
             startPos.Y.Scale,
@@ -69,18 +76,15 @@ f.InputChanged:Connect(function(input)
 end)
 
 -- Auto-jump
-local c=p.Character or p.CharacterAdded:Wait()
-local h=c:WaitForChild("Humanoid")
-local a=0
-
-r.Heartbeat:Connect(function(dt)
-    if e then
-        a=a+dt
-        if a>=0.05 then
-            a=0
-            if h.FloorMaterial~=Enum.Material.Air then h.Jump=true end
+local tickAcc = 0
+RunService.Heartbeat:Connect(function(dt)
+    if isOn then
+        tickAcc = tickAcc + dt
+        if tickAcc >= 0.05 then
+            tickAcc = 0
+            if humanoid.FloorMaterial ~= Enum.Material.Air then
+                humanoid.Jump = true
+            end
         end
-        local pulse=math.sin(tick()*10)*0.1
-        o.Color=Color3.fromRGB(0,255*(0.9+pulse),0)
     end
 end)
