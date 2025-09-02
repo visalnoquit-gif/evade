@@ -10,7 +10,7 @@ local humanoid = character:WaitForChild("Humanoid")
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 
 local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 60, 0, 30) -- small like your thumb
+frame.Size = UDim2.new(0, 60, 0, 30)
 frame.Position = UDim2.new(0.5, -30, 0.5, -15)
 frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 frame.BackgroundTransparency = 0.7
@@ -36,25 +36,32 @@ local isOn = false
 local function toggleEvade()
     isOn = not isOn
     button.Text = isOn and "Evade On" or "Evade Off"
-    if isOn then
-        outline.Color = Color3.fromRGB(0, 255, 0)
-    else
-        outline.Color = Color3.fromRGB(255, 0, 0)
-    end
+    outline.Color = isOn and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end
 
 button.MouseButton1Click:Connect(toggleEvade)
 
--- Draggable (mobile-friendly)
+-- **Mobile-friendly draggable code**
 local dragging = false
-local dragStart
-local startPos
+local dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    frame.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+end
 
 frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
+        dragInput = input
         dragStart = input.Position
         startPos = frame.Position
+
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
@@ -64,14 +71,14 @@ frame.InputBegan:Connect(function(input)
 end)
 
 frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch and dragging then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging and dragInput then
+        update(dragInput)
     end
 end)
 
