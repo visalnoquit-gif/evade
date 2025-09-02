@@ -1,6 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -22,7 +22,15 @@ local outline = Instance.new("UIStroke", frame)
 outline.Thickness = 2
 outline.Color = Color3.fromRGB(255, 0, 0)
 
-local button = Instance.new("TextButton", frame)
+-- Drag handle (above button so touches work)
+local dragHandle = Instance.new("TextButton", frame)
+dragHandle.Size = UDim2.new(1, 0, 1, 0)
+dragHandle.BackgroundTransparency = 1
+dragHandle.Text = ""
+dragHandle.TextTransparency = 1
+
+-- Button (shows text)
+local button = Instance.new("TextLabel", frame)
 button.Size = UDim2.new(1, 0, 1, 0)
 button.BackgroundTransparency = 1
 button.Text = "Evade Off"
@@ -31,37 +39,25 @@ button.TextScaled = true
 
 -- State
 local isOn = false
-
--- Toggle function
-local function toggleEvade()
+local function toggle()
     isOn = not isOn
     button.Text = isOn and "Evade On" or "Evade Off"
     outline.Color = isOn and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end
 
-button.MouseButton1Click:Connect(toggleEvade)
+-- Tap the dragHandle to toggle
+dragHandle.MouseButton1Click:Connect(toggle)
 
--- **Mobile-friendly draggable code**
+-- Mobile dragging variables
 local dragging = false
-local dragInput, dragStart, startPos
+local dragStart = Vector2.new()
+local startPos = UDim2.new()
 
-local function update(input)
-    local delta = input.Position - dragStart
-    frame.Position = UDim2.new(
-        startPos.X.Scale,
-        startPos.X.Offset + delta.X,
-        startPos.Y.Scale,
-        startPos.Y.Offset + delta.Y
-    )
-end
-
-frame.InputBegan:Connect(function(input)
+dragHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
-        dragInput = input
         dragStart = input.Position
         startPos = frame.Position
-
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
@@ -70,28 +66,21 @@ frame.InputBegan:Connect(function(input)
     end
 end)
 
-frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+UserInputService.TouchMoved:Connect(function(touch)
+    if dragging then
+        local delta = touch.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
     end
 end)
 
-RunService.RenderStepped:Connect(function()
-    if dragging and dragInput then
-        update(dragInput)
-    end
-end)
-
--- Auto-jump
-local tickAcc = 0
-RunService.Heartbeat:Connect(function(dt)
-    if isOn then
-        tickAcc = tickAcc + dt
-        if tickAcc >= 0.05 then
-            tickAcc = 0
-            if humanoid.FloorMaterial ~= Enum.Material.Air then
-                humanoid.Jump = true
-            end
-        end
+-- Auto-jump mobile-friendly
+RunService.Heartbeat:Connect(function()
+    if isOn and humanoid.FloorMaterial ~= Enum.Material.Air then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
